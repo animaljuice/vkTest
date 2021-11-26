@@ -1,5 +1,6 @@
 #pragma once
 
+#include "GraphicPipeline.h"
 #include <string>
 
 namespace vk_engine {
@@ -12,6 +13,8 @@ public:
 	VulkanMachine& operator=(const VulkanMachine& other) = delete;
 	VulkanMachine(const VulkanMachine& other) = delete;
 	virtual ~VulkanMachine();
+
+	GraphicPipeline createGP() const;
 
 };
 }

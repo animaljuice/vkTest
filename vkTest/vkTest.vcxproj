@@ -143,12 +143,14 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="framework.h" />
+    <ClInclude Include="GraphicPipeline.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="targetver.h" />
     <ClInclude Include="vkTest.h" />
     <ClInclude Include="VulkanMachine.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="GraphicPipeline.cpp" />
     <ClCompile Include="vkTest.cpp" />
     <ClCompile Include="VulkanMachine.cpp" />
   </ItemGroup>

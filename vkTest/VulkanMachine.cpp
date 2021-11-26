@@ -10,8 +10,6 @@ namespace vk_engine {
 		VkDevice m_device = nullptr;
 		VkPhysicalDevice m_physDev = nullptr;
 
-		VkAllocationCallbacks m_callBacks;
-
 		std::vector<uint32_t> graphicQueueIndexes;
 		std::vector<uint32_t> transferQueueIndexes;
 		std::vector<uint32_t> computeQueueIndexes;
@@ -105,6 +103,11 @@ VulkanMachine::VulkanMachine(const std::string &appName):
 
 VulkanMachine::~VulkanMachine()
 {
-	vkDestroyInstance(_m_pImpl->m_inst, &_m_pImpl->m_callBacks);
+	vkDestroyInstance(_m_pImpl->m_inst, nullptr);
 	delete _m_pImpl;
+}
+
+GraphicPipeline VulkanMachine::createGP() const
+{
+	return GraphicPipeline();
 }
