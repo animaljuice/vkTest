@@ -14,7 +14,7 @@ public:
 	VulkanMachine(const VulkanMachine& other) = delete;
 	virtual ~VulkanMachine();
 
-	GraphicPipeline createGP() const;
+	GraphicPipeline createGP();
 
 };
 }

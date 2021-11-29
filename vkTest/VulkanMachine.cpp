@@ -10,11 +10,14 @@ namespace vk_engine {
 		VkDevice m_device = nullptr;
 		VkPhysicalDevice m_physDev = nullptr;
 
-		std::vector<uint32_t> graphicQueueIndexes;
-		std::vector<uint32_t> transferQueueIndexes;
-		std::vector<uint32_t> computeQueueIndexes;
-		std::vector<uint32_t> sparseQueueIndexes;
-		std::vector<uint32_t> protectedQueueIndexes;
+		std::vector<uint32_t> m_graphicQueueIndexes{};
+		std::vector<uint32_t> m_transferQueueIndexes{};
+		std::vector<uint32_t> m_computeQueueIndexes{};
+		std::vector<uint32_t> m_sparseQueueIndexes{};
+		std::vector<uint32_t> m_protectedQueueIndexes{};
+
+		std::vector<uint32_t> m_queuesCount{};
+		std::vector<uint32_t> m_acquiredQueues{};
 	};
 }
 
@@ -59,46 +62,63 @@ VulkanMachine::VulkanMachine(const std::string &appName):
 	std::vector<VkQueueFamilyProperties> familyProps(familyPropCount);
 	vkGetPhysicalDeviceQueueFamilyProperties(_m_pImpl->m_physDev, &familyPropCount, familyProps.data());
 
-	for (size_t famIndex = 0; famIndex < familyProps.size(); ++famIndex)
+	for (uint32_t famIndex = 0; famIndex < familyProps.size(); ++famIndex)
 	{
+		_m_pImpl->m_queuesCount.push_back(familyProps[famIndex].queueCount);
 		if (familyProps[famIndex].queueFlags & VK_QUEUE_COMPUTE_BIT) {
-			_m_pImpl->computeQueueIndexes.push_back(famIndex);
+			_m_pImpl->m_computeQueueIndexes.push_back(famIndex);
 		}
 		if (familyProps[famIndex].queueFlags & VK_QUEUE_GRAPHICS_BIT) {
-			_m_pImpl->graphicQueueIndexes.push_back(famIndex);
+			_m_pImpl->m_graphicQueueIndexes.push_back(famIndex);
 		}
 		if (familyProps[famIndex].queueFlags & VK_QUEUE_TRANSFER_BIT) {
-			_m_pImpl->transferQueueIndexes.push_back(famIndex);
+			_m_pImpl->m_transferQueueIndexes.push_back(famIndex);
 		}
 		if (familyProps[famIndex].queueFlags & VK_QUEUE_SPARSE_BINDING_BIT) {
-			_m_pImpl->sparseQueueIndexes.push_back(famIndex);
+			_m_pImpl->m_sparseQueueIndexes.push_back(famIndex);
 		}
 		if (familyProps[famIndex].queueFlags & VK_QUEUE_PROTECTED_BIT) {
-			_m_pImpl->protectedQueueIndexes.push_back(famIndex);
+			_m_pImpl->m_protectedQueueIndexes.push_back(famIndex);
 		}
 	}
+
 	/*uint32_t layerCount;	
 	vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
 	std::vector<VkLayerProperties> lps(layerCount);
 	vkEnumerateInstanceLayerProperties(&layerCount, lps.data());*/
 
-	//VkDeviceQueueCreateInfo dqci;
-	//dqci.flags = 0;
-	//dqci.pNext = nullptr;
-	//dqci.pQueuePriorities
+	std::vector<VkDeviceQueueCreateInfo> dqcis(_m_pImpl->m_queuesCount.size());
+	for (uint32_t familyIndex = 0; familyIndex < dqcis.size(); familyIndex++)
+	{
+		auto queueCount = _m_pImpl->m_queuesCount[familyIndex];
+		std::vector<float> priorities(queueCount);
+		for (uint32_t queueIndex = 0; queueIndex < queueCount; queueIndex++)
+		{
+			priorities[queueIndex] = queueIndex / float(queueCount - 1);
+		}
+		
+		auto& dqci = dqcis[familyIndex];
+		dqci.flags = 0;
+		dqci.pNext = nullptr;
+		dqci.pQueuePriorities = priorities.data();
+		dqci.queueCount = queueCount;
+		dqci.queueFamilyIndex = familyIndex;
+		dqci.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+	}
 
-	//VkDeviceCreateInfo dci;
-	//dci.enabledExtensionCount = 0;
-	//dci.enabledLayerCount = 0;
-	//dci.flags = 0;
-	//dci.pEnabledFeatures = nullptr;
-	//dci.pNext = nullptr;
-	//dci.ppEnabledExtensionNames = nullptr;
-	//dci.ppEnabledLayerNames = nullptr;
-	//dci.pQueueCreateInfos
-	//vkCreateDevice(_m_pImpl->m_physDev, )
+	VkDeviceCreateInfo dci;
+	dci.enabledExtensionCount = 0;
+	dci.enabledLayerCount = 0;
+	dci.flags = 0;
+	dci.pEnabledFeatures = nullptr;
+	dci.pNext = nullptr;
+	dci.ppEnabledExtensionNames = nullptr;
+	dci.ppEnabledLayerNames = nullptr;
+	dci.pQueueCreateInfos = dqcis.data();
+	dci.queueCreateInfoCount = uint32_t(dqcis.size());
+	dci.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
 
-	std::cout << "asdqwe";
+	auto dcRes = vkCreateDevice(_m_pImpl->m_physDev, &dci, nullptr, &_m_pImpl->m_device);
 }
 
 VulkanMachine::~VulkanMachine()
@@ -107,7 +127,12 @@ VulkanMachine::~VulkanMachine()
 	delete _m_pImpl;
 }
 
-GraphicPipeline VulkanMachine::createGP() const
+GraphicPipeline VulkanMachine::createGP()
 {
-	return GraphicPipeline();
+	for (auto grapFamIndex : _m_pImpl->m_graphicQueueIndexes) {
+		//std::find()
+	}
+	VkQueue resDesc;
+	vkGetDeviceQueue(_m_pImpl->m_device, 0, 0, &resDesc);
+	return GraphicPipeline(resDesc);
 }

@@ -28,8 +28,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     UNREFERENCED_PARAMETER(hPrevInstance);
     UNREFERENCED_PARAMETER(lpCmdLine);
 
-    vk_engine::VulkanMachine vkm("хуёвое приложение");
-    auto qwe = vkm.createGP();
+    vk_engine::VulkanMachine vkm("Asshole app");
+    vkm.createGP();
 
     // Initialize global strings
     LoadStringW(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);

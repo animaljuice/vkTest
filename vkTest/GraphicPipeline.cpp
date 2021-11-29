@@ -5,7 +5,7 @@ using namespace vk_engine;
 
 namespace vk_engine {
 	struct GraphicPipelinePrivate {
-		
+		VkQueue m_graphicsQueue;
 	};
 }
 
@@ -16,19 +16,20 @@ void GraphicPipeline::swap(GraphicPipeline& other)
 	other._m_pImpl = MyImpl;
 }
 
-GraphicPipeline::GraphicPipeline():
+GraphicPipeline::GraphicPipeline(void *internalDescription):
 	_m_pImpl(new GraphicPipelinePrivate)
 {
+	
 }
 
-GraphicPipeline::GraphicPipeline(GraphicPipeline&& other) noexcept
+GraphicPipeline::GraphicPipeline(GraphicPipeline&& other)
 {
 	if (&other != this) {
 		swap(other);
 	}
 }
 
-GraphicPipeline& GraphicPipeline::operator=(GraphicPipeline&& other) noexcept
+GraphicPipeline& GraphicPipeline::operator=(GraphicPipeline&& other)
 {
 	if (&other != this) {
 		swap(other);
