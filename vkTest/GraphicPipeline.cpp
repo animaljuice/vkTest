@@ -6,6 +6,10 @@ using namespace vk_engine;
 namespace vk_engine {
 	struct GraphicPipelinePrivate {
 		VkQueue m_graphicsQueue;
+		GraphicPipelinePrivate(VkQueue graphicsQueue) :
+			m_graphicsQueue(graphicsQueue) {
+
+		}
 	};
 }
 
@@ -17,7 +21,7 @@ void GraphicPipeline::swap(GraphicPipeline& other)
 }
 
 GraphicPipeline::GraphicPipeline(void *internalDescription):
-	_m_pImpl(new GraphicPipelinePrivate)
+	_m_pImpl(new GraphicPipelinePrivate(reinterpret_cast<VkQueue>(internalDescription)))
 {
 	
 }

@@ -18,6 +18,8 @@ namespace vk_engine {
 
 		std::vector<uint32_t> m_queuesCount{};
 		std::vector<uint32_t> m_acquiredQueues{};
+
+		std::vector<VkCommandPool> m_cmdPools;
 	};
 }
 
@@ -62,9 +64,13 @@ VulkanMachine::VulkanMachine(const std::string &appName):
 	std::vector<VkQueueFamilyProperties> familyProps(familyPropCount);
 	vkGetPhysicalDeviceQueueFamilyProperties(_m_pImpl->m_physDev, &familyPropCount, familyProps.data());
 
+	_m_pImpl->m_queuesCount.resize(familyProps.size());
+	_m_pImpl->m_acquiredQueues.resize(familyProps.size());
+	_m_pImpl->m_cmdPools.resize(familyProps.size());
+
 	for (uint32_t famIndex = 0; famIndex < familyProps.size(); ++famIndex)
 	{
-		_m_pImpl->m_queuesCount.push_back(familyProps[famIndex].queueCount);
+		_m_pImpl->m_queuesCount[famIndex] = familyProps[famIndex].queueCount;
 		if (familyProps[famIndex].queueFlags & VK_QUEUE_COMPUTE_BIT) {
 			_m_pImpl->m_computeQueueIndexes.push_back(famIndex);
 		}
@@ -119,20 +125,49 @@ VulkanMachine::VulkanMachine(const std::string &appName):
 	dci.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
 
 	auto dcRes = vkCreateDevice(_m_pImpl->m_physDev, &dci, nullptr, &_m_pImpl->m_device);
+
+	for (size_t familyIndex = 0; familyIndex < _m_pImpl->m_cmdPools.size(); familyIndex++)
+	{
+		VkCommandPoolCreateInfo cpci;
+		cpci.flags = 0;
+		cpci.pNext = VK_NULL_HANDLE;
+		cpci.queueFamilyIndex = familyIndex;
+
+		vkCreateCommandPool(_m_pImpl->m_device, &cpci, VK_NULL_HANDLE, &_m_pImpl->m_cmdPools[familyIndex]);
+	}
+
+	
 }
 
 VulkanMachine::~VulkanMachine()
 {
-	vkDestroyInstance(_m_pImpl->m_inst, nullptr);
+	for (size_t familyIndex = 0; familyIndex < _m_pImpl->m_cmdPools.size(); familyIndex++)
+	{
+		vkDestroyCommandPool(_m_pImpl->m_device, _m_pImpl->m_cmdPools[familyIndex], VK_NULL_HANDLE);
+	}
+
+	vkDestroyDevice(_m_pImpl->m_device, VK_NULL_HANDLE);
+	vkDestroyInstance(_m_pImpl->m_inst, VK_NULL_HANDLE);
 	delete _m_pImpl;
 }
 
 GraphicPipeline VulkanMachine::createGP()
 {
+	bool found = false;
 	for (auto grapFamIndex : _m_pImpl->m_graphicQueueIndexes) {
-		//std::find()
+		if (_m_pImpl->m_acquiredQueues[grapFamIndex] < _m_pImpl->m_queuesCount[grapFamIndex]) {
+			++_m_pImpl->m_acquiredQueues[grapFamIndex];
+			found = true;
+			break;
+		}
 	}
-	VkQueue resDesc;
-	vkGetDeviceQueue(_m_pImpl->m_device, 0, 0, &resDesc);
-	return GraphicPipeline(resDesc);
+
+	if (found) {
+		VkQueue resDesc;
+		vkGetDeviceQueue(_m_pImpl->m_device, 0, 0, &resDesc);
+		return GraphicPipeline(resDesc);
+	}
+	else {
+		throw std::exception("have not free graphics queue anymore");
+	}
 }
