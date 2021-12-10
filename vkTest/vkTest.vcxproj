@@ -142,6 +142,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="CommandBuffer.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="GraphicPipeline.h" />
     <ClInclude Include="Resource.h" />
@@ -150,6 +151,7 @@
     <ClInclude Include="VulkanMachine.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="CommandBuffer.cpp" />
     <ClCompile Include="GraphicPipeline.cpp" />
     <ClCompile Include="vkTest.cpp" />
     <ClCompile Include="VulkanMachine.cpp" />

@@ -1,13 +1,19 @@
 #include "GraphicPipeline.h"
+#include "CommandBuffer.h"
+#include "VulkanMachine.h"
 #include <vulkan/vulkan.hpp>
 
 using namespace vk_engine;
 
 namespace vk_engine {
 	struct GraphicPipelinePrivate {
-		VkQueue m_graphicsQueue;
-		GraphicPipelinePrivate(VkQueue graphicsQueue) :
-			m_graphicsQueue(graphicsQueue) {
+		QueueInfo m_queueInfo;
+		CommandBuffer m_cmdBuffer;
+
+		GraphicPipelinePrivate(QueueInfo graphicsQueueInfo) :
+			m_queueInfo(graphicsQueueInfo),
+			m_cmdBuffer(graphicsQueueInfo.m_familyIndex)
+		{
 
 		}
 	};
@@ -20,10 +26,10 @@ void GraphicPipeline::swap(GraphicPipeline& other)
 	other._m_pImpl = MyImpl;
 }
 
-GraphicPipeline::GraphicPipeline(void *internalDescription):
-	_m_pImpl(new GraphicPipelinePrivate(reinterpret_cast<VkQueue>(internalDescription)))
+GraphicPipeline::GraphicPipeline():
+	_m_pImpl(new GraphicPipelinePrivate(VulkanMachine::instance().allocateGraphicsQueue()))
 {
-	
+
 }
 
 GraphicPipeline::GraphicPipeline(GraphicPipeline&& other)

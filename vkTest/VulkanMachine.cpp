@@ -1,8 +1,9 @@
 #include "VulkanMachine.h"
 #include <iostream>
-#include <vulkan/vulkan.hpp>
 
 using namespace vk_engine;
+
+std::string applicationName("default app name");
 
 namespace vk_engine {
 	struct VulkanMachinePrivate {
@@ -10,16 +11,7 @@ namespace vk_engine {
 		VkDevice m_device = nullptr;
 		VkPhysicalDevice m_physDev = nullptr;
 
-		std::vector<uint32_t> m_graphicQueueIndexes{};
-		std::vector<uint32_t> m_transferQueueIndexes{};
-		std::vector<uint32_t> m_computeQueueIndexes{};
-		std::vector<uint32_t> m_sparseQueueIndexes{};
-		std::vector<uint32_t> m_protectedQueueIndexes{};
-
-		std::vector<uint32_t> m_queuesCount{};
-		std::vector<uint32_t> m_acquiredQueues{};
-
-		std::vector<VkCommandPool> m_cmdPools;
+		std::vector<QueueFamilyInfo> m_familyInfos;
 	};
 }
 
@@ -64,28 +56,10 @@ VulkanMachine::VulkanMachine(const std::string &appName):
 	std::vector<VkQueueFamilyProperties> familyProps(familyPropCount);
 	vkGetPhysicalDeviceQueueFamilyProperties(_m_pImpl->m_physDev, &familyPropCount, familyProps.data());
 
-	_m_pImpl->m_queuesCount.resize(familyProps.size());
-	_m_pImpl->m_acquiredQueues.resize(familyProps.size());
-	_m_pImpl->m_cmdPools.resize(familyProps.size());
-
-	for (uint32_t famIndex = 0; famIndex < familyProps.size(); ++famIndex)
-	{
-		_m_pImpl->m_queuesCount[famIndex] = familyProps[famIndex].queueCount;
-		if (familyProps[famIndex].queueFlags & VK_QUEUE_COMPUTE_BIT) {
-			_m_pImpl->m_computeQueueIndexes.push_back(famIndex);
-		}
-		if (familyProps[famIndex].queueFlags & VK_QUEUE_GRAPHICS_BIT) {
-			_m_pImpl->m_graphicQueueIndexes.push_back(famIndex);
-		}
-		if (familyProps[famIndex].queueFlags & VK_QUEUE_TRANSFER_BIT) {
-			_m_pImpl->m_transferQueueIndexes.push_back(famIndex);
-		}
-		if (familyProps[famIndex].queueFlags & VK_QUEUE_SPARSE_BINDING_BIT) {
-			_m_pImpl->m_sparseQueueIndexes.push_back(famIndex);
-		}
-		if (familyProps[famIndex].queueFlags & VK_QUEUE_PROTECTED_BIT) {
-			_m_pImpl->m_protectedQueueIndexes.push_back(famIndex);
-		}
+	_m_pImpl->m_familyInfos.resize(familyProps.size());
+	for (uint32_t famIndex = 0; famIndex < familyProps.size(); ++famIndex) {
+		_m_pImpl->m_familyInfos[famIndex].m_flags = familyProps[famIndex].queueFlags;
+		_m_pImpl->m_familyInfos[famIndex].m_freeQueueCount = familyProps[famIndex].queueCount;
 	}
 
 	/*uint32_t layerCount;	
@@ -93,10 +67,10 @@ VulkanMachine::VulkanMachine(const std::string &appName):
 	std::vector<VkLayerProperties> lps(layerCount);
 	vkEnumerateInstanceLayerProperties(&layerCount, lps.data());*/
 
-	std::vector<VkDeviceQueueCreateInfo> dqcis(_m_pImpl->m_queuesCount.size());
+	std::vector<VkDeviceQueueCreateInfo> dqcis(_m_pImpl->m_familyInfos.size());
 	for (uint32_t familyIndex = 0; familyIndex < dqcis.size(); familyIndex++)
 	{
-		auto queueCount = _m_pImpl->m_queuesCount[familyIndex];
+		auto queueCount = _m_pImpl->m_familyInfos[familyIndex].m_freeQueueCount;
 		std::vector<float> priorities(queueCount);
 		for (uint32_t queueIndex = 0; queueIndex < queueCount; queueIndex++)
 		{
@@ -126,24 +100,24 @@ VulkanMachine::VulkanMachine(const std::string &appName):
 
 	auto dcRes = vkCreateDevice(_m_pImpl->m_physDev, &dci, nullptr, &_m_pImpl->m_device);
 
-	for (size_t familyIndex = 0; familyIndex < _m_pImpl->m_cmdPools.size(); familyIndex++)
+	for (size_t familyIndex = 0; familyIndex < _m_pImpl->m_familyInfos.size(); familyIndex++)
 	{
 		VkCommandPoolCreateInfo cpci;
 		cpci.flags = 0;
 		cpci.pNext = VK_NULL_HANDLE;
 		cpci.queueFamilyIndex = familyIndex;
 
-		vkCreateCommandPool(_m_pImpl->m_device, &cpci, VK_NULL_HANDLE, &_m_pImpl->m_cmdPools[familyIndex]);
+		vkCreateCommandPool(_m_pImpl->m_device, &cpci, VK_NULL_HANDLE, &_m_pImpl->m_familyInfos[familyIndex].m_cmdPool);
 	}
 
-	
+	std::cout << "asdqwe";
 }
 
 VulkanMachine::~VulkanMachine()
 {
-	for (size_t familyIndex = 0; familyIndex < _m_pImpl->m_cmdPools.size(); familyIndex++)
+	for (size_t familyIndex = 0; familyIndex < _m_pImpl->m_familyInfos.size(); familyIndex++)
 	{
-		vkDestroyCommandPool(_m_pImpl->m_device, _m_pImpl->m_cmdPools[familyIndex], VK_NULL_HANDLE);
+		vkDestroyCommandPool(_m_pImpl->m_device, _m_pImpl->m_familyInfos[familyIndex].m_cmdPool, VK_NULL_HANDLE);
 	}
 
 	vkDestroyDevice(_m_pImpl->m_device, VK_NULL_HANDLE);
@@ -151,23 +125,47 @@ VulkanMachine::~VulkanMachine()
 	delete _m_pImpl;
 }
 
-GraphicPipeline VulkanMachine::createGP()
+QueueInfo VulkanMachine::allocateGraphicsQueue()
 {
 	bool found = false;
-	for (auto grapFamIndex : _m_pImpl->m_graphicQueueIndexes) {
-		if (_m_pImpl->m_acquiredQueues[grapFamIndex] < _m_pImpl->m_queuesCount[grapFamIndex]) {
-			++_m_pImpl->m_acquiredQueues[grapFamIndex];
+	uint32_t familyIndex = 0, queueIndex = 0;
+	for (uint32_t famIndex = 0; famIndex < _m_pImpl->m_familyInfos.size(); ++famIndex) {
+		if (_m_pImpl->m_familyInfos[famIndex].m_freeQueueCount > 0 && _m_pImpl->m_familyInfos[famIndex].m_flags & VK_QUEUE_GRAPHICS_BIT) {
+			familyIndex = famIndex;
+			queueIndex = _m_pImpl->m_familyInfos[famIndex].m_freeQueueCount--;
 			found = true;
 			break;
 		}
 	}
 
 	if (found) {
-		VkQueue resDesc;
-		vkGetDeviceQueue(_m_pImpl->m_device, 0, 0, &resDesc);
-		return GraphicPipeline(resDesc);
+		QueueInfo res;
+		res.m_familyIndex = familyIndex;
+		vkGetDeviceQueue(_m_pImpl->m_device, familyIndex, queueIndex, &res.m_queue);
+		return res;
 	}
 	else {
 		throw std::exception("have not free graphics queue anymore");
 	}
+}
+
+uint32_t VulkanMachine::familyCount() const
+{
+	return _m_pImpl->m_familyInfos.size();
+}
+
+QueueFamilyInfo VulkanMachine::getFamInfo(uint32_t index) const
+{
+	return _m_pImpl->m_familyInfos.at(index);
+}
+
+VkDevice VulkanMachine::getDevice() const
+{
+	return _m_pImpl->m_device;
+}
+
+VulkanMachine& VulkanMachine::instance()
+{
+	static VulkanMachine inst(applicationName);
+	return inst;
 }
